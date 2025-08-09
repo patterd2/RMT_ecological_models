@@ -51,24 +51,31 @@ for a_idx = 1:n_alpha
             x0 = init_abund(:);
         end
 
-        % Time integration
-        tvec = 0:dt:T;
-        nt = numel(tvec);
-        X = zeros(N, nt);
-        X(:,1) = x0;
 
-        for k = 2:nt
-            x = X(:,k-1);
-            dx = x .* r - x.^2 + x .* (A * x);
-            x_new = x + dt * dx;
-            if enforce_nonneg
-                x_new(x_new < 0) = 0;
-            end
-            X(:,k) = x_new;
-        end
+        % NOTE THIS IS TURNED OFF IN FAVOUR OF BETTER NUMERICS AT ABOUT 10X
+        % SPEED COST; IF UNCOMMENTED, ALSO NEED TO SWAP THE DIMENSIONS OF X
+        % AROUND TO MAKE THE finalAbundance CALCULATION CORRECT
+        % % Time integration
+        % tvec = 0:dt:T;
+        % nt = numel(tvec);
+        % X = zeros(N, nt);
+        % X(:,1) = x0;
+        %
+        % for k = 2:nt
+        %     x = X(:,k-1);
+        %     dx = x .* r - x.^2 + x .* (A * x);
+        %     x_new = x + dt * dx;
+        %     if enforce_nonneg
+        %         x_new(x_new < 0) = 0;
+        %     end
+        %     X(:,k) = x_new;
+        % end
+
+        % Simulate the model in time
+        [T, X] = Simulate_GLV(r, A, x0, 100);
 
         % Metrics
-        finalAbundance = X(:,end);
+        finalAbundance = X(end,:);
         S_hat = sum(finalAbundance > survival_threshold);
         prop_survived = S_hat / N;
         if S_hat > 0
@@ -99,11 +106,11 @@ fontSize = 16;         % Font size
 % Plot: Proportion survived vs alpha
 figure('Name','Survival vs Alpha');
 plot(alpha_values, avg_prop_survived_vec, '-o', ...
-     'LineWidth', lw, ...
-     'MarkerSize', ms, ...
-     'Color', [0.2 0.4 0.8], ...
-     'MarkerEdgeColor', [0 0 0], ...
-     'MarkerFaceColor', [0.2 0.4 0.8]);
+    'LineWidth', lw, ...
+    'MarkerSize', ms, ...
+    'Color', [0.2 0.4 0.8], ...
+    'MarkerEdgeColor', [0 0 0], ...
+    'MarkerFaceColor', [0.2 0.4 0.8]);
 xlabel('\alpha (interaction strength)', 'FontSize', fontSize);
 ylabel('Average proportion survived', 'FontSize', fontSize);
 title('Species survival vs \alpha', 'FontSize', fontSize+2);
@@ -115,11 +122,11 @@ axis tight;
 % Plot: m_hat vs alpha
 figure('Name','m\_hat vs Alpha');
 plot(alpha_values, avg_m_hat_vec, '-s', ...
-     'LineWidth', lw, ...
-     'MarkerSize', ms, ...
-     'Color', [0.85 0.33 0.1], ...
-     'MarkerEdgeColor', [0 0 0], ...
-     'MarkerFaceColor', [0.85 0.33 0.1]);
+    'LineWidth', lw, ...
+    'MarkerSize', ms, ...
+    'Color', [0.85 0.33 0.1], ...
+    'MarkerEdgeColor', [0 0 0], ...
+    'MarkerFaceColor', [0.85 0.33 0.1]);
 xlabel('\alpha (interaction strength)', 'FontSize', fontSize);
 ylabel('m (mean square of surviving species)', 'FontSize', fontSize);
 title('Community abundance (m) vs \alpha', 'FontSize', fontSize+2);
