@@ -1,11 +1,11 @@
 % Matrix size
 N = 1000;
 % Bias term
-mu = 0;
+mu = 2;
 % variance scaling parameter
 alpha = 1;
 % Correlation parameter (-1 < rho < 1)
-rho = 0.25;
+rho = 0.75;
 
 Gamma = random_elliptic(N,mu,alpha,rho);
 
