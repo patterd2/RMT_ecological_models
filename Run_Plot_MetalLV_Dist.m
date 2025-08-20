@@ -1,0 +1,138 @@
+%% Consumer resource model with elliptic law interactions
+% This script is for generating one random set of parameters and then
+% checking for multistability by probing that model via a small number of
+% simulations with different initial conditions (< 10)
+
+close all;
+
+%% Parameters
+T_max = 1000;
+N = 50;
+survival_threshold = 0.001; % to declare species extinct
+
+i=1; % metal input rate
+delta=0.5; % metal degradation rate
+
+mu = 0.0; % bias in the elliptic law
+xi = 0.0; % correlation for the elliptic law
+alpha = 2.5; % interaction strength
+
+p_mean = 0.2;
+p_sd = 0.25;
+
+%% simulations setup
+
+%rand_vec = randn(N,1);
+%r = @(m)abs(r_mean + r_sd .* randn(N,1));
+%Make r=1 at x=0.75, and r=-1 at x=0 and 1.5.
+%r = @(m) 2*sech(r_spread*(m-(r_mean+r_sd.* rand_vec))).^2-1;
+p1 = unifrnd(-0.15, -0.05, N, 1);
+p2 = unifrnd(0.2, 0.4, N, 1);
+p3 = unifrnd(0.2 , 0.9, N, 1);
+
+r = @(m) p1.*m.^2 + p2.*m+p3;
+p = (p_mean/N + (p_sd/sqrt(N)) .* randn(1,N));
+A = random_elliptic(N, mu, alpha, xi);
+
+% need to preset for consistency
+cmap = jet(N);
+cmap = cmap(randperm(N), :);
+dist=1;
+dist_start = 270;
+dist_end = 300;
+delta_i = 1.5;
+num_sims = 1;
+enforce_death = 0;
+survival_threshold = 1e-5;
+m_initial = [1 3 10];
+for kk = 1:num_sims
+    rng(kk);
+    %% Set initial conditions and run simulations
+    x0 = unifrnd(0.5, 1.5, N, 1);
+    m0 = m_initial(kk);
+    [T, x, m] = Simulate_MetalLV_Dist(r, A, i, delta, p, x0, m0, T_max, dist, dist_start, dist_end, delta_i, enforce_death, survival_threshold);
+
+    finalAbundance = x(end, :); % Get the final abundances after simulation
+    S_hat = sum(finalAbundance > survival_threshold);
+    prop_survived = S_hat / N;
+
+    %% Plotting
+    figure;
+    set(0, 'DefaultLineLineWidth', 1.5, ...
+        'DefaultAxesFontSize', 13, ...
+        'DefaultAxesFontWeight', 'bold');
+
+    tiledlayout(2,2, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+    % Abundances plot
+    nexttile;
+    h1 = plot(T, x);
+    for jj = 1:N
+        set(h1(jj), 'Color', cmap(jj,:), 'HandleVisibility', 'off');
+    end
+    title('\textbf{Abundance Dynamics}', 'Interpreter', 'latex');
+    xlabel('\textbf{Time $t$}', 'Interpreter', 'latex');
+    ylabel('\textbf{Abundance $C_i$}', 'Interpreter', 'latex');
+    grid on;
+    box on;
+
+    % Metal Availability plot
+    nexttile;
+    plot(T, m, 'color', [0, 0.5, 0.8], 'LineWidth', 2);
+    title('\textbf{Metal Availability}', 'Interpreter', 'latex');
+    xlabel('\textbf{Time $t$}', 'Interpreter', 'latex');
+    ylabel('\textbf{$M$}', 'Interpreter', 'latex');
+    ylim([0 10.1]);
+
+    % Growth rates plot: assign color to each species curve
+    nexttile;
+    Ms = linspace(0, max(m), 100);
+    hold on;
+    temp_r = r(Ms);
+    for ii = 1:N
+        plot(Ms, temp_r(ii,:), 'Color', cmap(ii,:), 'HandleVisibility', 'off');
+    end
+    hold off;
+    title('\textbf{Growth rates}', 'Interpreter', 'latex');
+    xlabel('\textbf{Metal Availability $M$}', 'Interpreter', 'latex');
+    ylabel('\textbf{Growth rates $r_i(M)$}', 'Interpreter', 'latex');
+
+    % Bar plot of final abundances (new 4th subplot)
+    nexttile;
+    histogram(finalAbundance,ceil(sqrt(N))+10); % Choose a visually distinct color
+    title('\textbf{Final Abundances Histogram}', 'Interpreter', 'latex');
+    xlabel('\textbf{Final Abundance}', 'Interpreter', 'latex');
+    ylabel('\textbf{Number of Species}', 'Interpreter', 'latex');
+
+    % Print statistics to the command window
+    fprintf('Sim number: %i\n',ii);
+    fprintf('Number of survivors Ŝ = %d out of %d species (%.1f%% survived)\n', ...
+        S_hat, N, 100*prop_survived);
+    fprintf('m (mean square of surviving species) = %f\n', sqrt(sum(finalAbundance.^2)));
+    fprintf('Final metal concentration = %f\n',m(end));
+
+    %% Convergence Check
+    convergence_threshold = 1e-5; % Relative change for convergence
+    if size(x, 1) > 1
+        prevAbundance = x(end-1, :);
+        rel_change = abs(finalAbundance - prevAbundance) ./ max(abs(finalAbundance));
+        converged_species = (rel_change < convergence_threshold);
+        prop_converged = sum(converged_species)/N;
+    else
+        prop_converged = NaN;
+    end
+    fprintf('Proportion of species converged = %.1f%%\n', 100*prop_converged);
+    hold off;
+
+    figure;
+    h1 = plot(T, x, 'linewidth', 2);
+    for jj = 1:N
+        set(h1(jj), 'Color', cmap(jj,:), 'HandleVisibility', 'off');
+    end
+    title('\textbf{Abundance Dynamics}', 'Interpreter', 'latex');
+    xlabel('\textbf{Time $t$}', 'Interpreter', 'latex');
+    ylabel('\textbf{Abundance $C_i$}', 'Interpreter', 'latex');
+    axis tight;
+    grid on;
+    box on;
+end
